@@ -2,11 +2,11 @@
 
 ## Purpose
 
-This project exports Spotify playlist contents as **metadata only**. It is intentionally limited to song and artist listings plus optional playlist metadata. It does not attempt to download, mirror, or transform audio.
+This tool exports personally created and shared ownership Spotify playlist contents as **metadata only**. It is intentionally limited to song and artist listings plus optional playlist metadata. It does not attempt to download, mirror, or transform audio.
 
 ## Architecture
 
-The exporter is packaged as a small Python CLI inside a Docker container.
+The tool is packaged as a small Python CLI inside a Docker container for portability, see the project README for further details.
 
 ### Main components
 
@@ -15,21 +15,21 @@ The exporter is packaged as a small Python CLI inside a Docker container.
 - `/data` is a mounted volume used to persist OAuth tokens across container runs.
 - `/output` is an optional mounted volume where exports are written.
 
-## Authentication approach
+## Authentication
 
-The implementation uses Spotify's **Authorization Code** flow because the tool needs access to the authenticated user's playlists.
+The tool uses Spotify's **Authorization Code** flow to access the authenticated user's playlists.
 
-### Why this flow
+### Why this workflow
 
-Client Credentials is not sufficient for user-specific playlist access. The exporter needs playlist scopes tied to the signed-in Spotify account, so it starts a temporary local callback server and completes the browser login flow.
+Client Credentials are not sufficient for playlist access on Spotify, so we start a temporary local callback server to complete the browser login.
 
 ### Callback handling
 
-- The tool generates a random OAuth state token and stores it in `/data/oauth_state.txt`.
-- It starts a small HTTP server bound to the callback port.
+- This script generates a random OAuth state token and stores it in `/data/oauth_state.txt`.
+- Also starts a small HTTP server bound to the callback port.
 - The bind host is configurable with `SPOTIFY_CALLBACK_HOST`; Docker runs should use `0.0.0.0` so the published port can reach the in-container server.
-- After the user signs in, Spotify redirects to the local callback URI.
-- The tool validates the returned state value before exchanging the authorization code for tokens.
+- After user sign-in, Spotify redirects to the local callback URI.
+- Validate the returned state value before exchanging the authorization code for tokens.
 
 ## Token persistence and refresh
 
@@ -41,8 +41,6 @@ At runtime:
 - The refreshed token payload overwrites the cached token file.
 
 Token and OAuth state cache files are written with private file permissions where the host filesystem supports them.
-
-This keeps the login friction low after the first successful authentication.
 
 ## Playlist retrieval
 
@@ -80,8 +78,6 @@ When `--minimal` is used, the exporter trims each row to:
 - `track_name`
 - `artists`
 
-This is useful when the goal is simply a clean list of songs and artists for sharing, archiving, or copying into a spreadsheet.
-
 ## TXT formatting
 
 TXT output always renders one line per row using:
@@ -96,7 +92,7 @@ The default separator is:
  - 
 ```
 
-This can be overridden with `--separator`, which makes it easier to produce cleaner human-readable lists.
+This can be overridden with `--separator`.
 
 ## Error handling
 
@@ -111,19 +107,17 @@ The CLI raises a custom `SpotifyExporterError` for expected user-facing failures
 - filesystem failures when reading inputs or writing outputs
 - malformed JSON responses from Spotify
 
-These are printed cleanly to stderr and returned with a non-zero exit code.
+These are printed to stderr and returned with a non-zero exit code.
 
 All Spotify HTTP calls use a 30 second request timeout. The local OAuth callback server polls with a short socket timeout and the overall auth wait defaults to 180 seconds.
 
 ## Containerization notes
 
-The container is intentionally simple:
+simple container image:
 
 - Base image: `python:3.12-slim`
 - Single dependency: `requests`
 - Entry point: `python /app/app.py`
-
-This keeps the image small and easy to rebuild. It also makes the project easy to adapt into a larger automation workflow later.
 
 ## Operational notes
 
@@ -142,7 +136,7 @@ This keeps the image small and easy to rebuild. It also makes the project easy t
 
 ### Non-owned playlist fallback
 
-When Spotify only returns metadata for non-owned playlists, the exporter can still produce share-style URLs. Those can be used in a manual browser workflow with https://www.chosic.com/spotify-playlist-exporter/ to retrieve track listings outside the Spotify Web API path.
+Spotify only returns metadata for non-owned playlists due to API limitations. This tool will produce share-style URLs which can be used to export non-owned playlists using services such as https://www.chosic.com/spotify-playlist-exporter/
 
 ### Port mapping
 
@@ -154,13 +148,9 @@ Example:
 -p 8888:8888
 ```
 
-## Public release hygiene
+## Future add-ons
 
-The tracked `.gitignore` and `.dockerignore` exclude local credentials, OAuth tokens, exports, saved browser pages, bytecode, and the local offline HTML experiment script from source control and Docker build context.
-
-## Extension ideas
-
-Possible next additions:
+Nice-to-haves:
 
 - `--playlist-name` selection without needing to copy IDs manually
 - batch export for all playlists
@@ -169,12 +159,5 @@ Possible next additions:
 - sort options such as artist-first or album-first
 - direct spreadsheet-friendly output presets
 
-## Design tradeoffs
-
-This implementation keeps everything in a single file for ease of handoff and portability. That is convenient for a small utility, though a larger version would likely split auth, Spotify API access, and formatting into separate modules.
-
-The current design is a good fit for:
-- local personal use
-- containerized automation
-- simple scripting and export workflows
-- easy future extension
+## LLM disclosure
+An LLM was used to generate initial documentation, unit tests and troubleshooting.
