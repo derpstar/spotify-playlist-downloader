@@ -54,6 +54,14 @@ Never commit `.env`, `data/`, `output/`, or saved browser pages. They can contai
 
 ## Build
 
+This workflow is not limited to Windows. The Docker-based commands in this README work on:
+
+- Linux
+- macOS
+- Windows through WSL2 + Docker Desktop
+
+Plain Windows without WSL is not the primary path documented here, because the examples assume a Unix-like shell and volume-mount syntax.
+
 ```bash
 docker build -t spotify-playlist-exporter .
 ```
